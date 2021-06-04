@@ -84,11 +84,15 @@ class Serial:
 
     BAUDRATES = list(BAUDRATE_CONSTANTS.keys())
 
-    def __init__(self, port=None, baudrate=9600, timeout=None, *args, **kwargs):
+    def __init__(
+        self, port=None, baudrate=9600, timeout=None, exclusive=None, *args, **kwargs
+    ):
         self._port = port
         self._baudrate = baudrate
         self._timeout = -1 if timeout is None else int(timeout * 1000)
         self._poller = select.poll()
+
+        self._exclusive = exclusive
 
         self.fd = None
         self.is_open = False
@@ -108,6 +112,8 @@ class Serial:
             raise SerialException(
                 err.errno, "Could not open port %s: %s" % (self._port, err)
             )
+
+        self.exclusive = self._exclusive
 
         termios.setraw(self.fd)
 
@@ -212,6 +218,27 @@ class Serial:
                 [iflag, oflag, cflag, lflag, _baudrate, _baudrate, cc],
             )
         self._baudrate = baudrate
+
+    @property
+    def exclusive(self):
+        return self._exclusive
+
+    @exclusive.setter
+    def exclusive(self, value):
+        if self.is_open:
+            if value is not None:
+                if value:
+                    try:
+                        fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except OSError as err:
+                        raise SerialException(
+                            err.errno,
+                            "Could not exclusively lock port %s: %s"
+                            % (self._port, err),
+                        )
+                else:
+                    fcntl.flock(self.fd, fcntl.LOCK_UN)
+        self._exclusive = value
 
     def send_break(self, duration=0.25):
         """\
