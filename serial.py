@@ -13,6 +13,8 @@ import _libc
 import fcntl
 import os
 
+CR = bytes([13])
+LF = bytes([10])
 
 if hasattr(termios, "TIOCINQ"):
     TIOCINQ = termios.TIOCINQ
@@ -165,6 +167,21 @@ class Serial:
             buf += chunk
 
         return buf
+
+    def read_until(self, expected=LF, size=None):
+        lenterm = len(expected)
+        line = bytearray()
+        while True:
+            c = self.read1()
+            if c:
+                line += c
+                if line[-lenterm:] == expected:
+                    break
+                if size is not None and len(line) >= size:
+                    break
+            else:
+                break
+        return bytes(line)
 
     @property
     def in_waiting(self):
