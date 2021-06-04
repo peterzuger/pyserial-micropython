@@ -13,28 +13,29 @@ import _libc
 import fcntl
 import os
 
+# fmt: off
+
 CR = bytes([13])
 LF = bytes([10])
 
-TIOCMGET = getattr(termios, "TIOCMGET", 0x5415)
-TIOCMBIS = getattr(termios, "TIOCMBIS", 0x5416)
-TIOCMBIC = getattr(termios, "TIOCMBIC", 0x5417)
-TIOCMSET = getattr(termios, "TIOCMSET", 0x5418)
+TIOCMGET   = getattr(termios, "TIOCMGET", 0x5415)
+TIOCMBIS   = getattr(termios, "TIOCMBIS", 0x5416)
+TIOCMBIC   = getattr(termios, "TIOCMBIC", 0x5417)
+TIOCMSET   = getattr(termios, "TIOCMSET", 0x5418)
 
 # TIOCM_LE = getattr(termios, 'TIOCM_LE', 0x001)
-TIOCM_DTR = getattr(termios, "TIOCM_DTR", 0x002)
-TIOCM_RTS = getattr(termios, "TIOCM_RTS", 0x004)
+TIOCM_DTR  = getattr(termios, "TIOCM_DTR", 0x002)
+TIOCM_RTS  = getattr(termios, "TIOCM_RTS", 0x004)
 # TIOCM_ST = getattr(termios, 'TIOCM_ST', 0x008)
 # TIOCM_SR = getattr(termios, 'TIOCM_SR', 0x010)
 
-TIOCM_CTS = getattr(termios, "TIOCM_CTS", 0x020)
-TIOCM_CAR = getattr(termios, "TIOCM_CAR", 0x040)
-TIOCM_RNG = getattr(termios, "TIOCM_RNG", 0x080)
-TIOCM_DSR = getattr(termios, "TIOCM_DSR", 0x100)
-TIOCM_CD = getattr(termios, "TIOCM_CD", TIOCM_CAR)
-TIOCM_RI = getattr(termios, "TIOCM_RI", TIOCM_RNG)
-# TIOCM_OUT1 = getattr(termios, 'TIOCM_OUT1', 0x2000)
-# TIOCM_OUT2 = getattr(termios, 'TIOCM_OUT2', 0x4000)
+TIOCM_CTS  = getattr(termios, "TIOCM_CTS", 0x020)
+TIOCM_CAR  = getattr(termios, "TIOCM_CAR", 0x040)
+TIOCM_RNG  = getattr(termios, "TIOCM_RNG", 0x080)
+TIOCM_DSR  = getattr(termios, "TIOCM_DSR", 0x100)
+TIOCM_CD   = getattr(termios, "TIOCM_CD",  TIOCM_CAR)
+TIOCM_RI   = getattr(termios, "TIOCM_RI",  TIOCM_RNG)
+
 if hasattr(termios, "TIOCINQ"):
     TIOCINQ = termios.TIOCINQ
 else:
@@ -42,20 +43,55 @@ else:
 TIOCOUTQ = getattr(termios, "TIOCOUTQ", 0x5411)
 
 TIOCM_zero_str = struct.pack("I", 0)
-TIOCM_RTS_str = struct.pack("I", TIOCM_RTS)
-TIOCM_DTR_str = struct.pack("I", TIOCM_DTR)
+TIOCM_RTS_str  = struct.pack("I", TIOCM_RTS)
+TIOCM_DTR_str  = struct.pack("I", TIOCM_DTR)
 
 # copied from asm-generic/termbits.h
-TCSANOW = getattr(termios, "TCSANOW", 0)
+TCSANOW   = getattr(termios, "TCSANOW",   0)
 TCSADRAIN = getattr(termios, "TCSADRAIN", 1)
 TCSAFLUSH = getattr(termios, "TCSAFLUSH", 2)
 
-TIOCSBRK = getattr(termios, "TIOCSBRK", 0x5427)
-TIOCCBRK = getattr(termios, "TIOCCBRK", 0x5428)
+TIOCSBRK  = getattr(termios, "TIOCSBRK", 0x5427)
+TIOCCBRK  = getattr(termios, "TIOCCBRK", 0x5428)
 
-IXON = getattr(termios, "IXON", 0x400)
-IXOFF = getattr(termios, "IXOFF", 0x1000)
-CRTSCTS = getattr(termios, "CRTSCTS", 0x80000000)
+IXON      = getattr(termios, "IXON",    0x400)
+IXOFF     = getattr(termios, "IXOFF",   0x1000)
+CRTSCTS   = getattr(termios, "CRTSCTS", 0x80000000)
+
+CMSPAR = 0o10000000000
+
+CSIZE = getattr(termios, "CSIZE", 0x30)
+CS8   = getattr(termios, "CS8",   0x30)
+CS7   = getattr(termios, "CS7",   0x20)
+CS6   = getattr(termios, "CS6",   0x10)
+CS5   = getattr(termios, "CS5",   0x00)
+
+INPCK  = getattr(termios, "INPCK",  0x010)
+ISTRIP = getattr(termios, "ISTRIP", 0x020)
+PARENB = getattr(termios, "PARENB", 0x100)
+PARODD = getattr(termios, "PARODD", 0x200)
+CSTOPB = getattr(termios, "CSTOPB", 0x040)
+
+CLOCAL = getattr(termios, "CLOCAL", 0x0800)
+CREAD  = getattr(termios, "CREAD",  0x0080)
+ICANON = getattr(termios, "ICANON", 0x0002)
+ECHO   = getattr(termios, "ECHO",   0x0008)
+ECHOE  = getattr(termios, "ECHOE",  0x0010)
+ECHOK  = getattr(termios, "ECHOK",  0x0020)
+ECHONL = getattr(termios, "ECHONL", 0x0040)
+ISIG   = getattr(termios, "ISIG",   0x0001)
+IEXTEN = getattr(termios, "IEXTEN", 0x8000)
+
+OPOST  = getattr(termios, "OPOST",  0x001)
+ONLCR  = getattr(termios, "ONLCR",  0x004)
+OCRNL  = getattr(termios, "OCRNL",  0x008)
+INLCR  = getattr(termios, "INLCR",  0x040)
+IGNCR  = getattr(termios, "IGNCR",  0x080)
+ICRNL  = getattr(termios, "ICRNL",  0x100)
+IGNBRK = getattr(termios, "IGNBRK", 0x001)
+
+
+# fmt: on
 
 
 class SerialException(OSError):
@@ -262,14 +298,12 @@ class Serial:
     def baudrate(self, baudrate):
         if self.is_open:
             try:
-                _baudrate = self.BAUDRATE_CONSTANTS[baudrate]
+                _br = self.BAUDRATE_CONSTANTS[baudrate]
             except KeyError:
                 raise ValueError("Invalid baud rate: %r" % self._baudrate)
             iflag, oflag, cflag, lflag, _, _, cc = termios.tcgetattr(self.fd)
             termios.tcsetattr(
-                self.fd,
-                TCSADRAIN,
-                [iflag, oflag, cflag, lflag, _baudrate, _baudrate, cc],
+                self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, _br, _br, cc]
             )
         self._baudrate = baudrate
 
@@ -287,9 +321,7 @@ class Serial:
             else:
                 iflag &= ~(IXON | IXOFF)
             termios.tcsetattr(
-                self.fd,
-                TCSADRAIN,
-                [iflag, oflag, cflag, lflag, ispeed, ospeed, cc],
+                self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
             )
 
     @property
@@ -306,9 +338,7 @@ class Serial:
             else:
                 cflag &= ~CRTSCTS
             termios.tcsetattr(
-                self.fd,
-                TCSADRAIN,
-                [iflag, oflag, cflag, lflag, ispeed, ospeed, cc],
+                self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
             )
 
     @property
