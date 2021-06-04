@@ -196,3 +196,10 @@ class Serial:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    # platform specific
+
+    def fileno(self):
+        if not self.is_open:
+            raise PortNotOpenError()
+        return self.fd
