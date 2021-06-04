@@ -213,6 +213,72 @@ class Serial:
             )
         self._baudrate = baudrate
 
+    # compatibility with io library
+
+    def readable(self):
+        return True
+
+    def writable(self):
+        return True
+
+    def seekable(self):
+        return False
+
+    def readinto(self, b):
+        data = self.read(len(b))
+        n = len(data)
+        try:
+            b[:n] = data
+        except TypeError as err:
+            import uarray as array
+
+            if not isinstance(b, array.array):
+                raise err
+            b[:n] = array.array("b", data)
+        return n
+
+    def readline(self, size=-1):
+        if size is None:
+            size = -1
+        line = bytearray()
+        while size < 0 or len(line) < size:
+            b = self.read1()
+            if not b:
+                break
+            line += b
+            if line.endswith(b"\n"):
+                break
+        return bytes(line)
+
+    def readlines(self, hint=-1):
+        if hint is None or hint <= 0:
+            return list(self)
+        n = 0
+        lines = []
+        for line in self:
+            lines.append(line)
+            n += len(line)
+            if n >= hint:
+                break
+        return lines
+
+    def writelines(self, lines):
+        for line in lines:
+            self.write(line)
+
+    def __iter__(self):
+        if not self.is_open:
+            raise PortNotOpenError()
+        return self
+
+    def __next__(self):
+        line = self.readline()
+        if not line:
+            raise StopIteration
+        return line
+
+    # context manager
+
     def __enter__(self):
         if self._port is not None and not self.is_open:
             self.open()
