@@ -118,6 +118,7 @@ class Serial:
 
         self._rts_state = True
         self._dtr_state = True
+        self._break_state = False
         self._exclusive = exclusive
 
         self.fd = None
@@ -267,6 +268,19 @@ class Serial:
                 else:
                     fcntl.flock(self.fd, fcntl.LOCK_UN)
         self._exclusive = value
+
+    @property
+    def break_condition(self):
+        return self._break_state
+
+    @break_condition.setter
+    def break_condition(self, value):
+        self._break_state = value
+        if self.is_open:
+            if self._break_state:
+                fcntl.ioctl(self.fd, TIOCSBRK)
+            else:
+                fcntl.ioctl(self.fd, TIOCCBRK)
 
     def send_break(self, duration=0.25):
         """\
