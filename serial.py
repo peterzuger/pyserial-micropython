@@ -16,6 +16,25 @@ import os
 CR = bytes([13])
 LF = bytes([10])
 
+TIOCMGET = getattr(termios, "TIOCMGET", 0x5415)
+TIOCMBIS = getattr(termios, "TIOCMBIS", 0x5416)
+TIOCMBIC = getattr(termios, "TIOCMBIC", 0x5417)
+TIOCMSET = getattr(termios, "TIOCMSET", 0x5418)
+
+# TIOCM_LE = getattr(termios, 'TIOCM_LE', 0x001)
+TIOCM_DTR = getattr(termios, "TIOCM_DTR", 0x002)
+TIOCM_RTS = getattr(termios, "TIOCM_RTS", 0x004)
+# TIOCM_ST = getattr(termios, 'TIOCM_ST', 0x008)
+# TIOCM_SR = getattr(termios, 'TIOCM_SR', 0x010)
+
+TIOCM_CTS = getattr(termios, "TIOCM_CTS", 0x020)
+TIOCM_CAR = getattr(termios, "TIOCM_CAR", 0x040)
+TIOCM_RNG = getattr(termios, "TIOCM_RNG", 0x080)
+TIOCM_DSR = getattr(termios, "TIOCM_DSR", 0x100)
+TIOCM_CD = getattr(termios, "TIOCM_CD", TIOCM_CAR)
+TIOCM_RI = getattr(termios, "TIOCM_RI", TIOCM_RNG)
+# TIOCM_OUT1 = getattr(termios, 'TIOCM_OUT1', 0x2000)
+# TIOCM_OUT2 = getattr(termios, 'TIOCM_OUT2', 0x4000)
 if hasattr(termios, "TIOCINQ"):
     TIOCINQ = termios.TIOCINQ
 else:
@@ -23,11 +42,16 @@ else:
 TIOCOUTQ = getattr(termios, "TIOCOUTQ", 0x5411)
 
 TIOCM_zero_str = struct.pack("I", 0)
+TIOCM_RTS_str = struct.pack("I", TIOCM_RTS)
+TIOCM_DTR_str = struct.pack("I", TIOCM_DTR)
 
 # copied from asm-generic/termbits.h
 TCSANOW = getattr(termios, "TCSANOW", 0)
 TCSADRAIN = getattr(termios, "TCSADRAIN", 1)
 TCSAFLUSH = getattr(termios, "TCSAFLUSH", 2)
+
+TIOCSBRK = getattr(termios, "TIOCSBRK", 0x5427)
+TIOCCBRK = getattr(termios, "TIOCCBRK", 0x5428)
 
 
 class SerialException(OSError):
@@ -92,6 +116,8 @@ class Serial:
         self._timeout = -1 if timeout is None else int(timeout * 1000)
         self._poller = select.poll()
 
+        self._rts_state = True
+        self._dtr_state = True
         self._exclusive = exclusive
 
         self.fd = None
@@ -122,6 +148,8 @@ class Serial:
         self.is_open = True
 
         self.baudrate = self._baudrate
+        self.dtr = self._dtr_state
+        self.rts = self._rts_state
 
     def close(self):
         if self.is_open:
@@ -248,6 +276,70 @@ class Serial:
         if not self.is_open:
             raise PortNotOpenError()
         _libc.i_tcsendbreak_ii(self.fd, int(duration / 0.25))
+
+    @property
+    def rts(self):
+        return self._rts_state
+
+    @rts.setter
+    def rts(self, value):
+        """Set terminal status line: Request To Send"""
+        self._rts_state = value
+        if self.is_open:
+            if self._rts_state:
+                fcntl.ioctl(self.fd, TIOCMBIS, TIOCM_RTS_str)
+            else:
+                fcntl.ioctl(self.fd, TIOCMBIC, TIOCM_RTS_str)
+
+    @property
+    def dtr(self):
+        return self._dtr_state
+
+    @dtr.setter
+    def dtr(self, value):
+        """Set terminal status line: Data Terminal Ready"""
+        self._dtr_state = value
+        if self.is_open:
+            if self._dtr_state:
+                fcntl.ioctl(self.fd, TIOCMBIS, TIOCM_DTR_str)
+            else:
+                fcntl.ioctl(self.fd, TIOCMBIC, TIOCM_DTR_str)
+
+    @property
+    def cts(self):
+        """Read terminal status line: Clear To Send"""
+        if not self.is_open:
+            raise PortNotOpenError()
+        buf = struct.pack("I", 0)
+        fcntl.ioctl(self.fd, TIOCMGET, buf, True)
+        return struct.unpack("I", buf)[0] & TIOCM_CTS != 0
+
+    @property
+    def dsr(self):
+        """Read terminal status line: Data Set Ready"""
+        if not self.is_open:
+            raise PortNotOpenError()
+        buf = struct.pack("I", 0)
+        fcntl.ioctl(self.fd, TIOCMGET, buf, True)
+        return struct.unpack("I", buf)[0] & TIOCM_DSR != 0
+
+    @property
+    def ri(self):
+        """Read terminal status line: Ring Indicator"""
+        if not self.is_open:
+            raise PortNotOpenError()
+        buf = struct.pack("I", 0)
+        fcntl.ioctl(self.fd, TIOCMGET, buf, True)
+        return struct.unpack("I", buf)[0] & TIOCM_RI != 0
+
+    @property
+    def cd(self):
+        """Read terminal status line: Carrier Detect"""
+        if not self.is_open:
+            raise PortNotOpenError()
+        buf = struct.pack("I", 0)
+        fcntl.ioctl(self.fd, TIOCMGET, buf, True)
+        return struct.unpack("I", buf)[0] & TIOCM_CD != 0
 
     # compatibility with io library
 
