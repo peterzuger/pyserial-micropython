@@ -58,6 +58,9 @@ IXON      = getattr(termios, "IXON",    0x400)
 IXOFF     = getattr(termios, "IXOFF",   0x1000)
 CRTSCTS   = getattr(termios, "CRTSCTS", 0x80000000)
 
+TCIFLUSH  = getattr(termios, "TCIFLUSH", 0)
+TCOFLUSH  = getattr(termios, "TCOFLUSH", 1)
+
 CMSPAR = 0o10000000000
 
 CSIZE = getattr(termios, "CSIZE", 0x30)
@@ -259,6 +262,16 @@ class Serial:
         ret = _libc.i_tcdrain_i(self.fd)
         if ret == -1:
             raise OSError(os.errno())
+
+    def reset_input_buffer(self):
+        if not self.is_open:
+            raise PortNotOpenError()
+        _libc.i_tcflush_ii(self.fd, TCIFLUSH)
+
+    def reset_output_buffer(self):
+        if not self.is_open:
+            raise PortNotOpenError()
+        _libc.i_tcflush_ii(self.fd, TCOFLUSH)
 
     def write(self, data):
         if not self.is_open:
