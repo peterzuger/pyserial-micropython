@@ -53,6 +53,10 @@ TCSAFLUSH = getattr(termios, "TCSAFLUSH", 2)
 TIOCSBRK = getattr(termios, "TIOCSBRK", 0x5427)
 TIOCCBRK = getattr(termios, "TIOCCBRK", 0x5428)
 
+IXON = getattr(termios, "IXON", 0x400)
+IXOFF = getattr(termios, "IXOFF", 0x1000)
+CRTSCTS = getattr(termios, "CRTSCTS", 0x80000000)
+
 
 class SerialException(OSError):
     """Base class for serial port related exceptions."""
@@ -109,13 +113,25 @@ class Serial:
     BAUDRATES = list(BAUDRATE_CONSTANTS.keys())
 
     def __init__(
-        self, port=None, baudrate=9600, timeout=None, exclusive=None, *args, **kwargs
+        self,
+        port=None,
+        baudrate=9600,
+        timeout=None,
+        xonxoff=False,
+        rtscts=False,
+        dsrdtr=False,
+        exclusive=None,
+        *args,
+        **kwargs
     ):
         self._port = port
         self._baudrate = baudrate
         self._timeout = -1 if timeout is None else int(timeout * 1000)
         self._poller = select.poll()
 
+        self._xonxoff = xonxoff
+        self._rtscts = rtscts
+        self._dsrdtr = dsrdtr
         self._rts_state = True
         self._dtr_state = True
         self._break_state = False
@@ -149,8 +165,14 @@ class Serial:
         self.is_open = True
 
         self.baudrate = self._baudrate
-        self.dtr = self._dtr_state
-        self.rts = self._rts_state
+        self.xonxoff = self._xonxoff
+        self.rtscts = self._rtscts
+
+        if not self._dsrdtr:
+            self.dtr = self._dtr_state
+
+        if not self._rtscts:
+            self.rts = self._rts_state
 
     def close(self):
         if self.is_open:
@@ -250,6 +272,52 @@ class Serial:
                 [iflag, oflag, cflag, lflag, _baudrate, _baudrate, cc],
             )
         self._baudrate = baudrate
+
+    @property
+    def xonxoff(self):
+        return self._xonxoff
+
+    @xonxoff.setter
+    def xonxoff(self, value):
+        self._xonxoff = value
+        if self.is_open:
+            iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
+            if self._xonxoff:
+                iflag |= IXON | IXOFF
+            else:
+                iflag &= ~(IXON | IXOFF)
+            termios.tcsetattr(
+                self.fd,
+                TCSADRAIN,
+                [iflag, oflag, cflag, lflag, ispeed, ospeed, cc],
+            )
+
+    @property
+    def rtscts(self):
+        return self._rtscts
+
+    @rtscts.setter
+    def rtscts(self, value):
+        self._rtscts = value
+        if self.is_open:
+            iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
+            if self._rtscts:
+                cflag |= CRTSCTS
+            else:
+                cflag &= ~CRTSCTS
+            termios.tcsetattr(
+                self.fd,
+                TCSADRAIN,
+                [iflag, oflag, cflag, lflag, ispeed, ospeed, cc],
+            )
+
+    @property
+    def dsrdtr(self):
+        return self._dsrdtr
+
+    @dsrdtr.setter
+    def dsrdtr(self, value):
+        raise NotImplementedError("DSR/DTR hardware flow control not implemented")
 
     @property
     def exclusive(self):
