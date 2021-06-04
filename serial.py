@@ -239,7 +239,10 @@ class Serial:
     @baudrate.setter
     def baudrate(self, baudrate):
         if self.is_open:
-            _baudrate = self.BAUDRATE_CONSTANTS[baudrate]
+            try:
+                _baudrate = self.BAUDRATE_CONSTANTS[baudrate]
+            except KeyError:
+                raise ValueError("Invalid baud rate: %r" % self._baudrate)
             iflag, oflag, cflag, lflag, _, _, cc = termios.tcgetattr(self.fd)
             termios.tcsetattr(
                 self.fd,
