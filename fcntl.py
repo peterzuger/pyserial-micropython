@@ -5,8 +5,6 @@
 # (C) 2021 Peter Züger <zueger.peter@icloud.com>
 #
 # SPDX-License-Identifier:    MIT
-import uos
-
 import _libc
 
 
@@ -117,29 +115,18 @@ DN_MULTISHOT        = 0x80000000 # Don't remove notifier
 # fmt: on
 
 
-def _handle_error(ret):
-    if ret == -1:
-        raise OSError(uos.errno())
-    return ret
-
-
 def fcntl(fd, op, arg=0):
     if isinstance(arg, int):
-        ret = _libc.i_fcntl_iil(fd, op, arg)
-    else:
-        ret = _libc.i_fcntl_iip(fd, op, arg)
-    return _handle_error(ret)
+        return _libc.checked_i_fcntl_iil(fd, op, arg)
+    return _libc.checked_i_fcntl_iip(fd, op, arg)
 
 
 def ioctl(fd, op, arg=0, mutate_flag=True):
     if isinstance(arg, int):
-        ret = _libc.i_ioctl_iil(fd, op, arg)
-    else:
-        assert mutate_flag
-        ret = _libc.i_ioctl_iip(fd, op, arg)
-    return _handle_error(ret)
+        return _libc.checked_i_ioctl_iil(fd, op, arg)
+    assert mutate_flag
+    return _libc.checked_i_ioctl_iip(fd, op, arg)
 
 
 def flock(fd, operation):
-    ret = _libc.i_flock_ii(fd, operation)
-    return _handle_error(ret)
+    return _libc.checked_i_flock_ii(fd, operation)

@@ -260,19 +260,17 @@ class Serial:
     def flush(self):
         if not self.is_open:
             raise PortNotOpenError()
-        ret = _libc.i_tcdrain_i(self.fd)
-        if ret == -1:
-            raise OSError(os.errno())
+        _libc.checked_i_tcdrain_i(self.fd)
 
     def reset_input_buffer(self):
         if not self.is_open:
             raise PortNotOpenError()
-        _libc.i_tcflush_ii(self.fd, TCIFLUSH)
+        _libc.checked_i_tcflush_ii(self.fd, TCIFLUSH)
 
     def reset_output_buffer(self):
         if not self.is_open:
             raise PortNotOpenError()
-        _libc.i_tcflush_ii(self.fd, TCOFLUSH)
+        _libc.checked_i_tcflush_ii(self.fd, TCOFLUSH)
 
     def write(self, data):
         if not self.is_open:
@@ -538,7 +536,7 @@ class Serial:
         """
         if not self.is_open:
             raise PortNotOpenError()
-        _libc.i_tcsendbreak_ii(self.fd, int(duration / 0.25))
+        _libc.checked_i_tcsendbreak_ii(self.fd, int(duration / 0.25))
 
     @property
     def rts(self):

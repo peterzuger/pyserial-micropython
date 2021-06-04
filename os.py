@@ -47,31 +47,21 @@ O_NDELAY    = O_NONBLOCK
 # fmt: on
 
 
-def _handle_error(ret):
-    if ret == -1:
-        raise OSError(errno())
-    return ret
-
-
 def open(path, flags, mode=0o777, *, dir_fd=None):
     if dir_fd is None:
-        ret = _libc.i_open_sii(path, flags, mode)
-    else:
-        ret = _libc.i_openat_isii(dir_fd, path, flags, mode)
-    return _handle_error(ret)
+        return _libc.checked_i_open_sii(path, flags, mode)
+    return _libc.checked_i_openat_isii(dir_fd, path, flags, mode)
 
 
 def close(fd):
-    ret = _libc.i_close_i(fd)
-    return _handle_error(ret)
+    return _libc.checked_i_close_i(fd)
 
 
 def read(fd, n):
     buf = bytearray(n)
-    ret = _libc.i_read_ipi(fd, buf, n)
-    return bytes(buf[: _handle_error(ret)])
+    ret = _libc.checked_i_read_ipi(fd, buf, n)
+    return bytes(buf[:ret])
 
 
 def write(fd, buf):
-    ret = _libc.i_write_iPi(fd, buf, len(buf))
-    return _handle_error(ret)
+    return _libc.checked_i_write_iPi(fd, buf, len(buf))

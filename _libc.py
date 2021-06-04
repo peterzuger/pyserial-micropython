@@ -6,6 +6,7 @@
 #
 # SPDX-License-Identifier:    MIT
 import ffi
+import uos
 
 
 def _ffi_open(names):
@@ -18,15 +19,36 @@ def _ffi_open(names):
     raise err
 
 
+def _handle_error(ret):
+    if ret == -1:
+        raise OSError(uos.errno())
+    return ret
+
+
+def _check_wrapper(fun):
+    def checked(*args):
+        return _handle_error(fun(*args))
+
+    return checked
+
+
 _libc_names = ("libc.so",) + tuple("libc.so.%s" % i for i in range(6, -1, -1))
 _libc = _ffi_open(_libc_names)
-_cache = dict()
+_cache = {"handle_error": _handle_error}
 
 
 def __getattr__(attr):
+    checked = False
+    if attr.startswith("checked_"):
+        attr = attr[8:]
+        checked = True
+
     try:
         func = _cache[attr]
     except KeyError:
         rt, name, args = attr.split("_")
         func = _cache[attr] = _libc.func(rt, name, args)
+
+    if checked:
+        return _check_wrapper(func)
     return func
