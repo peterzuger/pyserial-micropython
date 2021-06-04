@@ -200,7 +200,8 @@ class Serial:
         self.fd = None
         self.is_open = False
 
-        self.open()
+        if port is not None:
+            self.open()
 
     def open(self):
         if self._port is None:
