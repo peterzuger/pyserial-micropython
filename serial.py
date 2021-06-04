@@ -18,6 +18,7 @@ if hasattr(termios, "TIOCINQ"):
     TIOCINQ = termios.TIOCINQ
 else:
     TIOCINQ = getattr(termios, "FIONREAD", 0x541B)
+TIOCOUTQ = getattr(termios, "TIOCOUTQ", 0x5411)
 
 TIOCM_zero_str = struct.pack("I", 0)
 
@@ -171,6 +172,12 @@ class Serial:
             raise PortNotOpenError()
         buf = struct.pack("I", 0)
         fcntl.ioctl(self.fd, TIOCINQ, buf, True)
+        return struct.unpack("I", buf)[0]
+
+    @property
+    def out_waiting(self):
+        buf = struct.pack("I", 0)
+        fcntl.ioctl(self.fd, TIOCOUTQ, buf, True)
         return struct.unpack("I", buf)[0]
 
     @property
