@@ -247,11 +247,11 @@ class Serial:
 
     def close(self):
         if self.is_open:
+            self.is_open = False
             if self.fd is not None:
                 self._poller.unregister(self.fd)
                 os.close(self.fd)
                 self.fd = None
-            self.is_open = False
 
     def flush(self):
         if not self.is_open:
@@ -324,6 +324,22 @@ class Serial:
         buf = struct.pack("I", 0)
         fcntl.ioctl(self.fd, TIOCOUTQ, buf, True)
         return struct.unpack("I", buf)[0]
+
+    @property
+    def port(self):
+        return self._port
+
+    @port.setter
+    def port(self, value):
+        if value is not None and not isinstance(value, str):
+            raise ValueError('"port" must be None or a string, not %s' % type(value))
+        was_open = self.is_open
+        if was_open:
+            self.close()
+        self._port = value
+        self.name = value
+        if was_open:
+            self.open()
 
     @property
     def bytesize(self):
