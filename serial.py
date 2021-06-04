@@ -194,7 +194,18 @@ class Serial:
 
         self.exclusive = self._exclusive
 
-        termios.setraw(self.fd)
+        iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
+
+        # set up raw mode / no echo / binary
+        cflag |= CLOCAL | CREAD
+        lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)  # |ECHOPRT
+
+        oflag &= ~(OPOST | ONLCR | OCRNL)
+        iflag &= ~(INLCR | IGNCR | ICRNL | IGNBRK)
+
+        termios.tcsetattr(
+            self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
+        )
 
         self._poller.register(self.fd, select.POLLIN | select.POLLHUP)
 
