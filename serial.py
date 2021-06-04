@@ -91,6 +91,18 @@ ICRNL  = getattr(termios, "ICRNL",  0x100)
 IGNBRK = getattr(termios, "IGNBRK", 0x001)
 
 
+PARITY_NONE, PARITY_EVEN, PARITY_ODD, PARITY_MARK, PARITY_SPACE = "N","E","O","M","S"
+STOPBITS_ONE, STOPBITS_ONE_POINT_FIVE, STOPBITS_TWO = (1, 1.5, 2)
+FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS = (5, 6, 7, 8)
+
+PARITY_NAMES = {
+    PARITY_NONE: "None",
+    PARITY_EVEN: "Even",
+    PARITY_ODD: "Odd",
+    PARITY_MARK: "Mark",
+    PARITY_SPACE: "Space",
+}
+
 # fmt: on
 
 
@@ -147,11 +159,17 @@ class Serial:
     # fmt: on
 
     BAUDRATES = list(BAUDRATE_CONSTANTS.keys())
+    BYTESIZES = (FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS)
+    PARITIES = (PARITY_NONE, PARITY_EVEN, PARITY_ODD, PARITY_MARK, PARITY_SPACE)
+    STOPBITS = (STOPBITS_ONE, STOPBITS_ONE_POINT_FIVE, STOPBITS_TWO)
 
     def __init__(
         self,
         port=None,
         baudrate=9600,
+        bytesize=EIGHTBITS,
+        parity=PARITY_NONE,
+        stopbits=STOPBITS_ONE,
         timeout=None,
         xonxoff=False,
         rtscts=False,
@@ -165,6 +183,9 @@ class Serial:
         self._timeout = -1 if timeout is None else int(timeout * 1000)
         self._poller = select.poll()
 
+        self._bytesize = bytesize
+        self._parity = parity
+        self._stopbits = stopbits
         self._xonxoff = xonxoff
         self._rtscts = rtscts
         self._dsrdtr = dsrdtr
@@ -212,6 +233,9 @@ class Serial:
         self.is_open = True
 
         self.baudrate = self._baudrate
+        self.bytesize = self._bytesize
+        self.parity = self._parity
+        self.stopbits = self._stopbits
         self.xonxoff = self._xonxoff
         self.rtscts = self._rtscts
 
@@ -300,6 +324,89 @@ class Serial:
         buf = struct.pack("I", 0)
         fcntl.ioctl(self.fd, TIOCOUTQ, buf, True)
         return struct.unpack("I", buf)[0]
+
+    @property
+    def bytesize(self):
+        return self._bytesize
+
+    @bytesize.setter
+    def bytesize(self, value):
+        if value not in self.BYTESIZES:
+            raise ValueError("Not a valid byte size: %r" % value)
+        self._bytesize = value
+        if self.is_open:
+            iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
+            cflag &= ~CSIZE
+            if self._bytesize == EIGHTBITS:
+                cflag |= CS8
+            elif self._bytesize == SEVENBITS:
+                cflag |= CS7
+            elif self._bytesize == SIXBITS:
+                cflag |= CS6
+            elif self._bytesize == FIVEBITS:
+                cflag |= CS5
+            else:
+                raise ValueError("Invalid char len: %r" % self._bytesize)
+            termios.tcsetattr(
+                self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
+            )
+
+    @property
+    def parity(self):
+        return self._parity
+
+    @parity.setter
+    def parity(self, value):
+        if value not in self.PARITIES:
+            raise ValueError("Not a valid parity: %r" % value)
+        self._parity = value
+        if self.is_open:
+            iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
+
+            # disable input parity checking and input character striping
+            iflag &= ~(INPCK | ISTRIP)
+            if self._parity == PARITY_NONE:
+                cflag &= ~(PARENB | PARODD | CMSPAR)
+            elif self._parity == PARITY_EVEN:
+                cflag &= ~(PARODD | CMSPAR)
+                cflag |= PARENB
+            elif self._parity == PARITY_ODD:
+                cflag &= ~CMSPAR
+                cflag |= PARENB | PARODD
+            elif self._parity == PARITY_MARK and CMSPAR:
+                cflag |= PARENB | CMSPAR | PARODD
+            elif self._parity == PARITY_SPACE and CMSPAR:
+                cflag |= PARENB | CMSPAR
+                cflag &= ~(PARODD)
+            else:
+                raise ValueError("Invalid parity: %r" % self._parity)
+            termios.tcsetattr(
+                self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
+            )
+
+    @property
+    def stopbits(self):
+        return self._stopbits
+
+    @stopbits.setter
+    def stopbits(self, value):
+        if value not in self.STOPBITS:
+            raise ValueError("Not a valid stop bit size: %r" % value)
+        self._stopbits = value
+        if self.is_open:
+            iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
+            if self._stopbits == STOPBITS_ONE:
+                cflag &= ~CSTOPB
+            elif self._stopbits == STOPBITS_ONE_POINT_FIVE:
+                cflag |= CSTOPB
+                # XXX same as TWO.. there is no POSIX support for 1.5
+            elif self._stopbits == STOPBITS_TWO:
+                cflag |= CSTOPB
+            else:
+                raise ValueError("Invalid stop bit specification: %r" % self._stopbits)
+            termios.tcsetattr(
+                self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
+            )
 
     @property
     def baudrate(self):
