@@ -446,7 +446,7 @@ class Serial:
             try:
                 _br = self.BAUDRATE_CONSTANTS[baudrate]
             except KeyError:
-                raise ValueError("Invalid baud rate: %r" % self._baudrate)
+                raise ValueError("Invalid baud rate: %r" % baudrate)
             iflag, oflag, cflag, lflag, _, _, cc = termios.tcgetattr(self.fd)
             termios.tcsetattr(
                 self.fd, TCSADRAIN, [iflag, oflag, cflag, lflag, _br, _br, cc]
