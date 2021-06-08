@@ -19,22 +19,19 @@ def _ffi_open(names):
     raise err
 
 
-def _handle_error(ret):
-    if ret == -1:
-        raise OSError(uos.errno())
-    return ret
-
-
 def _check_wrapper(fun):
     def checked(*args):
-        return _handle_error(fun(*args))
+        ret = fun(*args)
+        if ret == -1:
+            raise OSError(uos.errno())
+        return ret
 
     return checked
 
 
 _libc_names = ("libc.so",) + tuple("libc.so.%s" % i for i in range(6, -1, -1))
 _libc = _ffi_open(_libc_names)
-_cache = {"handle_error": _handle_error}
+_cache = {}
 
 
 def __getattr__(attr):
